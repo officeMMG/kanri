@@ -124,9 +124,105 @@ els.tabs.addEventListener('click', e => {
 function switchType(type) {
   currentType = type;
   [...els.tabs.children].forEach(b => b.classList.toggle('active', b.dataset.type === type));
+
+  if (type === 'inquiries') {
+    els.panelTitle.textContent = 'お問い合わせ';
+    els.btnAdd.style.display = 'none';
+    loadInquiries();
+    return;
+  }
+
+  els.btnAdd.style.display = '';
   els.panelTitle.textContent = SCHEMAS[type].label;
   loadList();
 }
+
+/* ===== お問い合わせ一覧 ===== */
+const JOB_LABELS = {
+  surveyor: '測量士・測量士補（正社員）',
+  drone: 'ドローンオペレーター（正社員）',
+  'assist-full': '測量補助・事務スタッフ（正社員）',
+  'assist-part': '測量補助・事務スタッフ（パート）',
+  other: 'その他・一般問い合わせ',
+};
+
+let currentInquiries = [];
+
+async function loadInquiries() {
+  setStatus('読み込み中…');
+  els.cardList.innerHTML = '';
+  try {
+    const res = await fetch('/api/inquiries');
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
+    const data = await res.json();
+    currentInquiries = data.contents || [];
+    renderInquiries();
+    setStatus(`${currentInquiries.length}件`);
+  } catch (err) {
+    console.error(err);
+    setStatus(`読み込みに失敗しました: ${err.message}`, true);
+  }
+}
+
+function renderInquiries() {
+  if (currentInquiries.length === 0) {
+    els.cardList.innerHTML = '<div class="empty-state">お問い合わせはまだありません。</div>';
+    return;
+  }
+  els.cardList.innerHTML = currentInquiries.map(inq => {
+    const isDone = inq.status === 'done';
+    const createdAt = inq.created_at ? new Date(inq.created_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }) : '';
+    return `
+    <div class="inquiry-row ${isDone ? 'is-done' : 'is-new'}" data-id="${inq.id}">
+      <div class="inquiry-head">
+        <div class="inquiry-meta">
+          <strong>${escapeHtml(inq.name)}</strong>
+          <div><a href="mailto:${escapeHtml(inq.email)}">${escapeHtml(inq.email)}</a>${inq.tel ? ` ／ ${escapeHtml(inq.tel)}` : ''}</div>
+          <div>応募職種: ${escapeHtml(JOB_LABELS[inq.job] || inq.job || '-')} ／ 受信: ${escapeHtml(createdAt)}</div>
+        </div>
+        <span class="status-badge ${isDone ? 'is-done' : 'is-new'}">${isDone ? '対応済み' : '未対応'}</span>
+      </div>
+      <div class="inquiry-message">${escapeHtml(inq.message)}</div>
+      <div class="inquiry-actions">
+        <button type="button" class="btn-edit" data-inquiry-action="toggle" data-id="${inq.id}" data-next="${isDone ? 'new' : 'done'}">${isDone ? '未対応に戻す' : '対応済みにする'}</button>
+        <button type="button" class="btn-danger" data-inquiry-action="delete" data-id="${inq.id}">削除</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+els.cardList.addEventListener('click', async e => {
+  const btn = e.target.closest('button[data-inquiry-action]');
+  if (!btn) return;
+  const id = btn.dataset.id;
+  if (btn.dataset.inquiryAction === 'toggle') {
+    try {
+      const res = await fetch(`/api/inquiries?id=${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: btn.dataset.next }),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
+      await loadInquiries();
+    } catch (err) {
+      console.error(err);
+      setStatus(`更新に失敗しました: ${err.message}`, true);
+    }
+  }
+  if (btn.dataset.inquiryAction === 'delete') {
+    const inq = currentInquiries.find(i => i.id === id);
+    if (!confirm(`「${inq ? inq.name : id}」さんのお問い合わせを削除します。よろしいですか？`)) return;
+    try {
+      const res = await fetch(`/api/inquiries?id=${id}`, { method: 'DELETE' });
+      if (!res.ok && res.status !== 204) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
+      await loadInquiries();
+      setStatus('削除しました');
+    } catch (err) {
+      console.error(err);
+      setStatus(`削除に失敗しました: ${err.message}`, true);
+    }
+  }
+});
 
 /* ===== 一覧取得・描画 ===== */
 async function loadList() {
