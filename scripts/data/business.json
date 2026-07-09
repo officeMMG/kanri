@@ -1,0 +1,23 @@
+[
+  {
+    "title": "測量",
+    "iconKey": "measure",
+    "items": ["基準点測量", "地形測量", "応用測量"],
+    "note": "など",
+    "order": 1
+  },
+  {
+    "title": "設計",
+    "iconKey": "design",
+    "items": ["農業土木", "一般土木", "GISデータ作成"],
+    "note": "",
+    "order": 2
+  },
+  {
+    "title": "調査",
+    "iconKey": "research",
+    "items": ["交通量調査", "流量調査", "水質調査"],
+    "note": "など",
+    "order": 3
+  }
+]

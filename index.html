@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理画面 | 株式会社office M・M・G 採用LP</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="admin-header">
+    <h1>採用LP 管理画面</h1>
+    <p class="admin-sub">株式会社office M・M・G 採用ページ コンテンツ管理（microCMS連携）</p>
+  </header>
+
+  <div class="admin-layout">
+    <nav class="admin-tabs" id="admin-tabs">
+      <button type="button" class="tab-btn" data-type="business">事業内容</button>
+      <button type="button" class="tab-btn" data-type="jobs">募集職種</button>
+      <button type="button" class="tab-btn" data-type="benefits">待遇・福利厚生</button>
+      <button type="button" class="tab-btn" data-type="voices">先輩の声</button>
+    </nav>
+
+    <main class="admin-main">
+      <div class="admin-toolbar">
+        <h2 id="panel-title"></h2>
+        <button type="button" id="btn-add" class="btn-primary">＋ 新規追加</button>
+      </div>
+      <p id="status-msg" class="status-msg"></p>
+      <div id="card-list" class="card-list"></div>
+    </main>
+  </div>
+
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modal-title">新規追加</h3>
+        <button type="button" id="modal-close" class="modal-close" aria-label="閉じる">✕</button>
+      </div>
+      <form id="item-form" class="modal-body"></form>
+      <div class="modal-footer">
+        <p id="form-error" class="form-error"></p>
+        <div class="modal-footer-buttons">
+          <button type="button" id="btn-cancel" class="btn-secondary">キャンセル</button>
+          <button type="submit" form="item-form" id="btn-save" class="btn-primary">保存する</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="icons.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

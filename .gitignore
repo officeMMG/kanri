@@ -1,0 +1,19 @@
+.vercel
+
+# 環境変数(APIキーなどの機密情報)
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+
+# OS
+.DS_Store
+Thumbs.db
+
+# エディタ
+.vscode/
+.idea/
+
+# 依存関係
+node_modules/
