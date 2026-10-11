@@ -63,10 +63,11 @@ const SCHEMAS = {
   },
   voices: {
     label: '先輩の声',
-    order: ['name', 'role', 'quote', 'avatar', 'order'],
+    order: ['name', 'role', 'lead', 'quote', 'avatar', 'order'],
     fields: {
       name: { label: 'お名前', type: 'text', required: true },
       role: { label: '役職・経歴', type: 'text' },
+      lead: { label: '見出しの一言（任意。空ならコメントから自動で作成。LPでは2行に分けて表示）', type: 'text' },
       quote: { label: 'コメント', type: 'textarea' },
       avatar: { label: 'アバター絵文字（任意）', type: 'text' },
       order: { label: '表示順', type: 'number', required: true },
@@ -132,6 +133,13 @@ function switchType(type) {
     return;
   }
 
+  if (type === 'media') {
+    els.panelTitle.textContent = 'サイト画像';
+    els.btnAdd.style.display = 'none';
+    loadMedia();
+    return;
+  }
+
   els.btnAdd.style.display = '';
   els.panelTitle.textContent = SCHEMAS[type].label;
   loadList();
@@ -139,6 +147,8 @@ function switchType(type) {
 
 /* ===== お問い合わせ一覧 ===== */
 const JOB_LABELS = {
+  'surveyor-entry': '測量士・測量士補（正社員）未経験者採用',
+  'surveyor-exp': '測量士・測量士補（正社員）経験者採用',
   surveyor: '測量士・測量士補（正社員）',
   drone: 'ドローンオペレーター（正社員）',
   'assist-full': '測量補助・事務スタッフ（正社員）',
@@ -385,6 +395,227 @@ async function deleteItem(id) {
     setStatus(`削除に失敗しました: ${err.message}`, true);
   }
 }
+
+/* ===== サイト画像（microCMSのオブジェクト形式API「media」） =====
+   未登録の項目は、LPに入っている元の画像・文言がそのまま表示される */
+const MEDIA_SECTIONS = [
+  { title: 'HERO下：流れる写真の帯', items: [
+    { key: 'gallery', kind: 'gallery', label: '写真（左から順に流れます）' },
+  ] },
+  { title: '私たちについて：重なった写真', items: [
+    { key: 'env1', kind: 'image', label: '写真1（最初に一番上に出る写真）' },
+    { key: 'env1Caption', kind: 'text', label: '写真1の説明文' },
+    { key: 'env2', kind: 'image', label: '写真2' },
+    { key: 'env2Caption', kind: 'text', label: '写真2の説明文' },
+    { key: 'env3', kind: 'image', label: '写真3' },
+    { key: 'env3Caption', kind: 'text', label: '写真3の説明文' },
+    { key: 'env4', kind: 'image', label: '写真4' },
+    { key: 'env4Caption', kind: 'text', label: '写真4の説明文' },
+  ] },
+  { title: '目指せる環境：写真4枚（上から順）', items: [
+    { key: 'reason1', kind: 'image', label: '写真1「未経験から、技術職へ」' },
+    { key: 'reason1Note', kind: 'textarea', label: '写真1の手書きメモ（改行するとLPでも改行。矢印は今の写真に合わせた固定の線です）' },
+    { key: 'reason2', kind: 'image', label: '写真2「新しい技術に触れる」' },
+    { key: 'reason3', kind: 'image', label: '写真3「社会を支える仕事」' },
+    { key: 'reason3Note', kind: 'textarea', label: '写真3の手書きメモ（改行するとLPでも改行。矢印は今の写真に合わせた固定の線です）' },
+    { key: 'reason4', kind: 'image', label: '写真4「一生モノの技術を、その手に。」' },
+  ] },
+  { title: '仕事を知る：業務の写真', items: [
+    { key: 'bizSurvey', kind: 'image', label: '測量' },
+    { key: 'bizDesign', kind: 'image', label: '設計' },
+    { key: 'bizResearch', kind: 'image', label: '調査' },
+  ] },
+  { title: '帯・バナー', items: [
+    { key: 'statementBanner', kind: 'image', label: '帯「今日の測量が、明日の街をつくる。」の背景' },
+    { key: 'recruitBanner', kind: 'image', label: '募集要項の上の横長写真' },
+    { key: 'recruitBannerCaption', kind: 'text', label: '横長写真の説明文' },
+    { key: 'ctaBanner', kind: 'image', label: '帯「あなたの一歩が、未来の街をつくる。」の背景' },
+  ] },
+  { title: 'フッター', items: [
+    { key: 'footerPhoto', kind: 'image', label: 'フッターの写真' },
+  ] },
+];
+const MEDIA_ITEMS = MEDIA_SECTIONS.flatMap(s => s.items);
+
+let mediaDraft = {};
+let mediaUploading = 0;
+
+function thumbUrl(url) {
+  return /^https:\/\/images\.microcms-assets\.io\//.test(url) ? `${url}?w=480&fm=webp&q=70` : url;
+}
+
+async function loadMedia() {
+  setStatus('読み込み中…');
+  els.cardList.innerHTML = '';
+  try {
+    const res = await fetch('/api/media');
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
+    const data = await res.json();
+    mediaDraft = {};
+    MEDIA_ITEMS.forEach(({ key, kind }) => {
+      const v = data[key];
+      if (kind === 'gallery') mediaDraft[key] = (v || []).map(m => m.url);
+      else if (kind === 'image') mediaDraft[key] = v && v.url ? v.url : '';
+      else mediaDraft[key] = v ?? '';
+    });
+    renderMedia();
+    setStatus('写真を選ぶとすぐアップロードされます。最後に「保存してLPに反映」を押してください。');
+  } catch (err) {
+    console.error(err);
+    setStatus(`読み込みに失敗しました: ${err.message}`, true);
+  }
+}
+
+function mediaSlotHtml(item) {
+  const { key, kind, label } = item;
+  const id = `m-${key}`;
+  if (kind === 'text' || kind === 'textarea') {
+    const control = kind === 'text'
+      ? `<input class="field-control" type="text" id="${id}" data-media-key="${key}" value="${escapeHtml(mediaDraft[key])}" placeholder="空欄のときはLPに入っている元の文言を表示">`
+      : `<textarea class="field-control" id="${id}" data-media-key="${key}" placeholder="空欄のときはLPに入っている元の文言を表示">${escapeHtml(mediaDraft[key])}</textarea>`;
+    return `<div class="field-group media-text"><label for="${id}">${escapeHtml(label)}</label>${control}</div>`;
+  }
+  if (kind === 'gallery') {
+    const list = mediaDraft[key];
+    const thumbs = list.map((url, i) => `
+      <div class="gallery-thumb">
+        <img src="${escapeHtml(thumbUrl(url))}" alt="" loading="lazy">
+        <div class="gallery-thumb-actions">
+          <button type="button" class="btn-edit" data-media-action="left" data-index="${i}" ${i === 0 ? 'disabled' : ''} aria-label="左へ">←</button>
+          <button type="button" class="btn-edit" data-media-action="right" data-index="${i}" ${i === list.length - 1 ? 'disabled' : ''} aria-label="右へ">→</button>
+          <button type="button" class="btn-danger" data-media-action="remove" data-index="${i}" aria-label="外す">✕</button>
+        </div>
+      </div>`).join('');
+    return `
+      <div class="media-gallery">
+        <div class="media-label">${escapeHtml(label)}</div>
+        ${list.length ? '' : '<p class="media-empty-note">未登録：LPに入っている元の写真を表示中</p>'}
+        <div class="gallery-grid">${thumbs}</div>
+        <label class="btn-secondary media-pick">＋ 写真を追加<input type="file" accept="image/jpeg,image/png,image/webp" multiple hidden data-media-file="${key}"></label>
+      </div>`;
+  }
+  const url = mediaDraft[key];
+  return `
+    <div class="media-slot">
+      <div class="media-thumb">${url ? `<img src="${escapeHtml(thumbUrl(url))}" alt="" loading="lazy">` : '<span>未登録<br>LPに入っている<br>元の写真を表示中</span>'}</div>
+      <div class="media-slot-body">
+        <div class="media-label">${escapeHtml(label)}</div>
+        <label class="btn-secondary media-pick">${url ? '写真を変更' : '写真を選ぶ'}<input type="file" accept="image/jpeg,image/png,image/webp" hidden data-media-file="${key}"></label>
+      </div>
+    </div>`;
+}
+
+function renderMedia() {
+  els.cardList.innerHTML = MEDIA_SECTIONS.map(sec => `
+    <section class="media-section">
+      <h3>${escapeHtml(sec.title)}</h3>
+      ${sec.items.map(mediaSlotHtml).join('')}
+    </section>`).join('') + `
+    <div class="media-savebar">
+      <p class="media-savebar-note">保存すると、LPには1分ほどで反映されます。</p>
+      <button type="button" class="btn-primary" data-media-action="save">保存してLPに反映</button>
+    </div>`;
+}
+
+// 大きな写真はブラウザで長辺2400pxまで縮小し、JPEGにしてから送る（送信サイズの上限対策）
+async function resizeImage(file, maxSide = 2400) {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.85));
+  const data = await new Promise(r => {
+    const reader = new FileReader();
+    reader.onload = () => r(String(reader.result).split(',')[1]);
+    reader.readAsDataURL(blob);
+  });
+  return { name: file.name.replace(/\.[^.]+$/, '') + '.jpg', type: 'image/jpeg', data };
+}
+
+async function uploadImage(file) {
+  const payload = await resizeImage(file);
+  const res = await fetch('/api/upload', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
+  return (await res.json()).url;
+}
+
+els.cardList.addEventListener('change', async e => {
+  const input = e.target.closest('input[data-media-file]');
+  if (!input || !input.files.length) return;
+  const key = input.dataset.mediaFile;
+  const files = [...input.files];
+  mediaUploading++;
+  setStatus(`アップロード中…（${files.length}枚）`);
+  try {
+    for (const file of files) {
+      const url = await uploadImage(file);
+      if (Array.isArray(mediaDraft[key])) mediaDraft[key].push(url);
+      else mediaDraft[key] = url;
+    }
+    renderMedia();
+    setStatus('アップロードしました。「保存してLPに反映」を押すとLPに出ます。');
+  } catch (err) {
+    console.error(err);
+    setStatus(`アップロードに失敗しました: ${err.message}`, true);
+  } finally {
+    mediaUploading--;
+  }
+});
+
+els.cardList.addEventListener('input', e => {
+  const field = e.target.closest('[data-media-key]');
+  if (field) mediaDraft[field.dataset.mediaKey] = field.value;
+});
+
+els.cardList.addEventListener('click', async e => {
+  const btn = e.target.closest('button[data-media-action]');
+  if (!btn) return;
+  const action = btn.dataset.mediaAction;
+  const list = mediaDraft.gallery;
+  const i = Number(btn.dataset.index);
+  if (action === 'left' || action === 'right') {
+    const j = action === 'left' ? i - 1 : i + 1;
+    [list[i], list[j]] = [list[j], list[i]];
+    renderMedia();
+    return;
+  }
+  if (action === 'remove') {
+    list.splice(i, 1);
+    renderMedia();
+    return;
+  }
+  if (action === 'save') {
+    if (mediaUploading) { setStatus('アップロードが終わってから保存してください。', true); return; }
+    const payload = {};
+    MEDIA_ITEMS.forEach(({ key, kind }) => {
+      const v = mediaDraft[key];
+      if (kind === 'image') { if (v) payload[key] = v; }
+      else if (kind === 'gallery') payload[key] = v;
+      else payload[key] = String(v ?? '').trim();
+    });
+    btn.disabled = true;
+    try {
+      const res = await fetch('/api/media', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
+      setStatus('保存しました。LPには1分ほどで反映されます。');
+    } catch (err) {
+      console.error(err);
+      setStatus(`保存に失敗しました: ${err.message}`, true);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+});
 
 /* ===== 初期化 ===== */
 switchType('business');

@@ -272,3 +272,62 @@ textarea.field-control { resize: vertical; min-height: 80px; }
   .card-row { flex-direction: column; align-items: flex-start; }
   .card-sub { max-width: 100%; white-space: normal; }
 }
+
+/* ===== サイト画像 ===== */
+.media-section {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 20px;
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.media-section h3 { font-size: 1rem; color: var(--primary); }
+.media-label { font-size: 0.85rem; font-weight: 700; color: var(--primary); margin-bottom: 8px; }
+.media-slot { display: flex; gap: 16px; align-items: center; }
+.media-thumb {
+  flex-shrink: 0;
+  width: 200px;
+  aspect-ratio: 4 / 3;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg);
+  border: 1px dashed var(--border);
+  display: flex; align-items: center; justify-content: center;
+  text-align: center;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: var(--text-mid);
+}
+.media-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.media-slot-body { min-width: 0; }
+.media-pick { display: inline-block; }
+.media-empty-note { font-size: 0.8rem; color: var(--text-mid); margin-bottom: 8px; }
+.gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-bottom: 10px; }
+.gallery-thumb { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--bg); }
+.gallery-thumb img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; }
+.gallery-thumb-actions { display: flex; gap: 6px; justify-content: center; padding: 6px; }
+.gallery-thumb-actions button { padding: 4px 10px; }
+.gallery-thumb-actions button:disabled { opacity: 0.35; cursor: default; }
+.media-savebar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  padding: 14px 20px;
+  background: rgba(255,255,255,0.95);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 -4px 16px rgba(10,22,40,0.06);
+}
+.media-savebar-note { font-size: 0.8rem; color: var(--text-mid); }
+
+@media (max-width: 767px) {
+  .media-slot { flex-direction: column; align-items: flex-start; }
+  .media-thumb { width: 100%; }
+  .media-savebar { flex-direction: column; align-items: stretch; }
+}
